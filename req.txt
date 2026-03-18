@@ -1,0 +1,11 @@
+numpy
+pandas
+torch
+tqdm
+scikit-learn
+flax
+jax
+jaxlib
+optax
+tensorflow
+matplotlib
