@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import roc_auc_score
 
-from model_base import ConvModel
 from tfbind_utils import dna_to_one_hot, load_numpy_dataset, METRICS_DIR
 
 SANITY_SEQS = {
@@ -22,19 +21,22 @@ SANITY_SEQS = {
 }
 
 
-def predict_sanity_check(model: ConvModel) -> None:
-    """Predict on CTCF motif and random control sequences."""
+def predict_sanity_check(model: nn.Module, tf: str | None = None) -> None:
+    """Predict on random control sequences, and CTCF motif if tf=='CTCF'."""
     model.eval()
     print("\n--- Sanity check ---")
+    seqs = {k: v for k, v in SANITY_SEQS.items() if k != "ctcf_motif"}
+    if tf == "CTCF":
+        seqs = SANITY_SEQS
     with torch.no_grad():
-        for name, seq in SANITY_SEQS.items():
+        for name, seq in seqs.items():
             x = torch.from_numpy(dna_to_one_hot(seq)[None, :]).float()
             prob = float(torch.sigmoid(model(x))[0, 0])
             print(f"  {name:<20s}  prob={prob:.4f}")
 
 
 def predict_on_dataset(
-    model: ConvModel, dataset: dict, name: str,
+    model: nn.Module, dataset: dict, name: str,
     batch_size: int = 512, save_path: str | None = None,
 ) -> dict:
     """Compute loss, accuracy, and AUC over a full numpy dataset."""
@@ -66,9 +68,9 @@ def predict_on_dataset(
     return {"n": n, "loss": loss, "accuracy": accuracy, "auc": auc}
 
 
-def run_predict(model: ConvModel, train_csv: str, valid_csv: str, model_id: str = "model") -> None:
+def run_predict(model: nn.Module, train_csv: str, valid_csv: str, model_id: str = "model", tf: str | None = None) -> None:
     """Run predictions against sanity check, train, and validation datasets."""
-    predict_sanity_check(model)
+    predict_sanity_check(model, tf=tf)
 
     print("\n--- Dataset predictions ---")
     train_metrics = predict_on_dataset(model, load_numpy_dataset(train_csv), "train")
@@ -83,3 +85,4 @@ def run_predict(model: ConvModel, train_csv: str, valid_csv: str, model_id: str 
     with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=2)
     print(f"\n  Metrics saved to {metrics_path}")
+    return metrics
