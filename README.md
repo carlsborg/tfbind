@@ -14,5 +14,9 @@ A PyTorch CNN model for transcription factor binding prediction in DNA. Ported t
 
 - python download.py  # downloads the dataset from the deeplearningforbiology website
 
-- python main.py --op train
+- train
+  // this trains 10 models using the same , produces loss logs in ./metrics
+ python main.py --op train 
+
+- python main.py --op predict # run prediction , produces loss logs in ./metrics
 
