@@ -31,7 +31,7 @@ python main.py --op predict
 claude -p "Hi have a look at program.md and let's kick off a new experiment! let's do the setup first." --dangerously-skip-permissions
 ```
 
-Of course run this on a sandbox of some sort if using that flag. I use https://ResearchBox.ai
+Of course run this on a sandbox if using that flag. I use https://ResearchBox.ai
 
 
 # References
