@@ -3,7 +3,7 @@
 
 This started as a CNN model for transcription factor binding prediction in DNA. Ported to PyTorch from the Jax implementation of chapter 3 of "Deep Learning for Biology" (Ravarani et al). The book informs that this task is inspired by one of the evaluation challenges presented in [1] and which sourced the dataset from [2].
 
-In this version, a basic two layer CNN with batch normalization is trained on 10 transcription factors binding datasets. The mean AUC is calculated and written to metrics.
+In this version, a basic two layer CNN with batch normalization is trained on 10 transcription factors binding datasets, resulting in 10 models. The mean AUC is calculated and written to metrics.
 
 We then use a modified program.md from Andrej Karpathy's [autoresaerch project](https://github.com/karpathy/autoresearch) to instruct an LLM to make sequential improvements to the model to improve the mean validation auc (mean auc for all 10 models). 
 
