@@ -55,7 +55,8 @@ Once the script finishes it printes metrics to ./metrics/{model_id}.json
     "SRF": 0.8477139683712829,
     "ZNF24": 0.7503096401925834
   }
-}```
+}
+```
 
 You can extract the key metric from the log file:
 
