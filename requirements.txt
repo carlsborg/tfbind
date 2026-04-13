@@ -9,3 +9,4 @@ jaxlib
 optax
 tensorflow
 matplotlib
+parfive==2.2.0
