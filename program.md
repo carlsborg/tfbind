@@ -13,8 +13,10 @@ To set up a new experiment, work with the user to:
    - `main.py` — entry point that takes commands "train" or "predict". Do not modify.
    - `tfbind.py` — the file you modify. Model architecture, model id, optimizer, training loop.
 4. **Verify data exists**: Check that `./assets/dna/datasets` contains csv data. If not, tell the human to run `python download.py`.
-5. **Initialize results.tsv**: Create `results.tsv` with just the header row. The baseline will be recorded after the first run.
-6. **Confirm and go**: Confirm setup looks good.
+5. **Create dev/test split**: Write and run a one-time Python script that reads each `{TF}_valid_sequences.csv`, shuffles it with a fixed random seed (42), and writes `{TF}_valid_dev.csv` (first 80%) and `{TF}_valid_test.csv` (last 20%) into the same directory. Then delete the script.
+6. **Create evaluate_holdout.py**: Create a script at the repo root that runs `run_predict` from `tf_predict.py` on each `{TF}_valid_test.csv` (using the same model checkpoint logic as `main.py`) and prints `mean_test_auc`. This script is never modified after creation.
+7. **Initialize results.tsv**: Create `results.tsv` with just the header row (see updated header below). The baseline will be recorded after the first run.
+8. **Confirm and go**: Confirm setup looks good.
 
 Once you get confirmation, kick off the experimentation.
 
@@ -68,25 +70,27 @@ grep mean_valid_auc  /home/ubuntu/ws/tfbind/metrics/mean_valid_auc.json
 
 When an experiment is done, log it to `results.tsv` (semicolon-separated, NOT comma-separated — commas break in descriptions).
 
-The TSV has a header row and 4 columns:
+The TSV has a header row and 5 columns:
 
 ```
-commit;mean_valid_auc;status;description
+commit;mean_valid_auc;mean_train_auc;status;description
 ```
 
 1. git commit hash (short, 7 chars)
 2. mean_valid_auc achieved (e.g. 0.88234567) — use 0.000000 for crashes
-3. status: `keep`, `discard`, or `crash`
-4. short text description of what this experiment tried
+3. mean_train_auc achieved — use 0.000000 for crashes. Read from the per-model `metrics/{run_id}_metrics.json` files (each has a `train.auc` field).
+4. status: `keep`, `discard`, `crash`, or `checkpoint`
+5. short text description of what this experiment tried
 
 Example:
 
 ```
-commit;mean_valid_auc;status;description
-a1b2c3d;0.837000;keep;baseline
-b2c3d4e;0.841000;keep;increase layers to 3
-c3d4e5f;0.835000;discard;switch to GeLU activation
-d4e5f6g;0.000000;crash;double model width (OOM)
+commit;mean_valid_auc;mean_train_auc;status;description
+a1b2c3d;0.837000;0.891000;keep;baseline
+b2c3d4e;0.841000;0.895000;keep;increase layers to 3
+c3d4e5f;0.835000;0.888000;discard;switch to GeLU activation
+d4e5f6g;0.000000;0.000000;crash;double model width (OOM)
+a1b2c3d;0.831000;0.000000;checkpoint;holdout test AUC after 10 experiments
 ```
 
 ## The experiment loop
@@ -101,9 +105,12 @@ LOOP FOREVER:
 4. Run the experiment: `python main.py --op train > run.log 2>&1` (redirect everything — do NOT use tee or let output flood your context)
 5. Read out the results: `grep mean_valid_auc  /home/ubuntu/ws/tfbind/metrics/mean_valid_auc.json`
 6. If the grep output is empty, the run crashed. Run `tail -n 50 run.log` to read the Python stack trace and attempt a fix. If you can't get things to work after more than a few attempts, give up.
-7. Record the results in the tsv (NOTE: do not commit the results.tsv file, leave it untracked by git)
-8. If mean_valid_auc improved (higher), you "advance" the branch, keeping the git commit
-9. If mean_valid_auc is equal or worse, you git reset back to where you started
+7. Run `python main.py --op predict > predict.log 2>&1` to generate per-model metrics files. Read `mean_train_auc` by averaging the `train.auc` field across all 10 per-model `metrics/{run_id}_metrics.json` files.
+8. **Overfitting guard**: If `mean_train_auc − mean_valid_auc > 0.05`, flag the result as overfitting and discard (git reset) even if valid AUC improved. Log it as `discard` with a note like "overfit: train=X.XXX val=Y.YYY".
+9. Record the results in the tsv (NOTE: do not commit the results.tsv file, leave it untracked by git)
+10. If mean_valid_auc improved (higher) and the overfitting guard passed, you "advance" the branch, keeping the git commit
+11. If mean_valid_auc is equal or worse, you git reset back to where you started
+12. **Every 10 experiments**, run `python evaluate_holdout.py > holdout.log 2>&1` and log the result as a `checkpoint` row in results.tsv with `mean_test_auc` in the `mean_valid_auc` column and `0.000000` in `mean_train_auc`. This is the unbiased estimate of true performance.
 
 The idea is that you are a completely autonomous researcher trying things out. If they work, keep. If they don't, discard. And you're advancing the branch so that you can iterate. If you feel like you're getting stuck in some way, you can rewind but you should probably do this very very sparingly (if ever).
 
